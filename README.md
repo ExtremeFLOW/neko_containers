@@ -39,7 +39,7 @@ sudo apt-get install -y ./apptainer_1.1.0_amd64.deb
   Set this variable to the location of this repo; in your bashrc.
 
 * Add the `bin` directory in the repo to your path.
-  `export PATH="$NEKO_CONTAINER_DIR/bin:$PATH"` also inyour bashrc.
+  `export PATH="$NEKO_CONTAINER_DIR/bin:$PATH"` also in your bashrc.
 
   This is optional, since the scripts in bin just run the container, which execute the compilation as defined
   in the container .def file.
