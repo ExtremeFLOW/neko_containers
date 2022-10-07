@@ -2,7 +2,7 @@
 
 A set of containers for building Neko with cpu, CUDA, HIP, and opencl.
 The intention is to mimic the builds we have at Github Actions and enable easy local testing against
-differnte architectures.
+different architectures.
 
 ## Preliminaries
 
