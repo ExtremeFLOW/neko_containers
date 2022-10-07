@@ -1,0 +1,25 @@
+BootStrap: docker
+From: ubuntu:20.04
+
+%setup
+mkdir ${APPTAINER_ROOTFS}/neko
+mkdir ${APPTAINER_ROOTFS}/neko_install
+mkdir ${APPTAINER_ROOTFS}/pfunit_install
+
+%post
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui
+apt-get install -y libopenblas-dev
+apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
+apt-get install -y vim pkg-config
+git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git
+cd pFUnit && mkdir b && cd b && cmake -DCMAKE_INSTALL_PREFIX=/pfunit_install .. && make -j$(nproc) && make install
+
+%runscript
+    cd /neko
+    make clean
+    ./regen.sh
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=/pfunit_install/PFUNIT-4.4 --prefix=/neko_install
+    make install
+

@@ -1,0 +1,27 @@
+BootStrap: docker
+From: ubuntu:20.04
+
+%setup
+mkdir $SINGULARITY_ROOTFS/neko
+mkdir $SINGULARITY_ROOTFS/neko_install
+
+%post
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui
+apt-get install -y libopenblas-dev
+apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
+apt-get install -y vim pkg-config
+apt-get install -y wget
+apt-get install -y gnupg
+wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
+echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/debian/ ubuntu main' | tee /etc/apt/sources.list.d/rocm.list
+apt-get update && apt-get install -y rocm-dev
+
+%runscript
+    cd /neko
+    make clean
+    ./regen.sh
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008" HIP_HIPCC_FLAGS="-O2 -fPIE"  --with-hip=/opt/rocm/hip --prefix=/neko_install
+    make install
+
