@@ -13,10 +13,14 @@ apt-get install -y libopenblas-dev
 apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
 apt-get install -y vim pkg-config
 apt-get install -y nvidia-cuda-toolkit
+apt-get install -y makedepf90
 
 %runscript
     cd /neko
     make clean
+    ./regen.sh
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008" --with-cuda=/usr --prefix=/neko_install
+    cd /neko/src && make depend && cd /neko
     ./regen.sh
     ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008" --with-cuda=/usr --prefix=/neko_install
     make install

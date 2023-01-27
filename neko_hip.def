@@ -14,6 +14,7 @@ apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
 apt-get install -y vim pkg-config
 apt-get install -y wget
 apt-get install -y gnupg
+apt-get install -y makedepf90
 wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
 echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/debian/ ubuntu main' | tee /etc/apt/sources.list.d/rocm.list
 apt-get update && apt-get install -y rocm-dev
@@ -21,6 +22,9 @@ apt-get update && apt-get install -y rocm-dev
 %runscript
     cd /neko
     make clean
+    ./regen.sh
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008" HIP_HIPCC_FLAGS="-O2 -fPIE"  --with-hip=/opt/rocm/hip --prefix=/neko_install
+    cd /neko/src && make depend && cd /neko
     ./regen.sh
     ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008" HIP_HIPCC_FLAGS="-O2 -fPIE"  --with-hip=/opt/rocm/hip --prefix=/neko_install
     make install
