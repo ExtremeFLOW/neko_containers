@@ -1,5 +1,5 @@
 BootStrap: docker
-From: ubuntu:20.04
+From: ubuntu:22.04
 
 %setup
 mkdir ${APPTAINER_ROOTFS}/neko
@@ -9,13 +9,30 @@ mkdir ${APPTAINER_ROOTFS}/pfunit_install
 %post
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui
+apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui python-is-python3
 apt-get install -y libopenblas-dev
 apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
 apt-get install -y vim pkg-config
 apt-get install -y makedepf90
-git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git
-cd pFUnit && mkdir b && cd b && cmake -DCMAKE_INSTALL_PREFIX=/pfunit_install .. && make -j$(nproc) && make install
+git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git -b v4.4.2
+cd pFUnit
+cat >> pfunit_error_stop.patch << _ACEOF
+diff --git a/src/funit/FUnit.F90 b/src/funit/FUnit.F90
+index 7df7b65..4f7dbf5 100644
+--- a/src/funit/FUnit.F90
++++ b/src/funit/FUnit.F90
+@@ -168,7 +168,7 @@ contains
+ #if defined(PGI)
+          call exit(-1)
+ #else
+-         stop '*** Encountered 1 or more failures/errors during testing. ***'
++         error stop '*** Encountered 1 or more failures/errors during testing. ***'
+ #endif
+       end if
+
+_ACEOF
+git apply pfunit_error_stop.patch && mkdir b && cd b
+cmake -DCMAKE_INSTALL_PREFIX=/pfunit_install .. && make -j$(nproc) && make install
 
 %runscript
     cd /neko
@@ -25,5 +42,5 @@ cd pFUnit && mkdir b && cd b && cmake -DCMAKE_INSTALL_PREFIX=/pfunit_install .. 
     cd /neko/src && make depend && cd /neko
     ./regen.sh
     ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=/pfunit_install/PFUNIT-4.4 --prefix=/neko_install
-    make install
+    make check -j
 
