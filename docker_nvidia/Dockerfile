@@ -1,4 +1,4 @@
-ARG IMAGE="nvcr.io/nvidia/nvhpc:24.11-devel-cuda_multi-ubuntu22.04"
+ARG IMAGE="nvcr.io/nvidia/nvhpc:25.1-devel-cuda_multi-ubuntu24.04"
 
 FROM ${IMAGE}
 
@@ -38,20 +38,22 @@ RUN git clone https://github.com/Nek5000/gslib.git \
     && cd gslib \
     && make
 
-RUN git clone -b ${NEKO_BRANCH} https://github.com/ExtremeFLOW/neko \
-    && cd neko \
+RUN git clone -b ${NEKO_BRANCH} https://github.com/ExtremeFLOW/neko 
+
+RUN cd neko \
+    && git apply patches/nvhpc_bge.patch \
     && ./regen.sh \
     && ./configure \
+        FC=nvfortran \
         FCFLAGS="-O3" \
         CUDAFLAGS="-O2 -fPIE --gpu-architecture=sm_80" \
-        NVCC=/opt/nvidia/hpc_sdk/Linux_x86_64/24.11/compilers/bin/nvcc \
+        NVCC=/opt/nvidia/hpc_sdk/Linux_x86_64/25.1/compilers/bin/nvcc \
         --prefix=/opt/neko \
-        --with-cuda=/opt/nvidia/hpc_sdk/Linux_x86_64/24.11/cuda/ \
+        --with-cuda=/opt/nvidia/hpc_sdk/Linux_x86_64/25.1/cuda/ \
         --with-gslib=/opt/gslib/build/ \
-    && make \
+    && make -j \
     && make install \
-    && chmod -R 777 /opt/neko \
-    && ln -s /opt/neko/examples/tgv/32768.nmsh /opt/neko/bench/tgv32/32768.nmsh
+    && chmod -R 777 /opt/neko
 
 WORKDIR /opt/neko/bench
 
