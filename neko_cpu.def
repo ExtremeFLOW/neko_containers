@@ -1,21 +1,39 @@
 BootStrap: docker
-From: ubuntu:22.04
+From: ubuntu:25.04
 
 %setup
 mkdir ${APPTAINER_ROOTFS}/neko
+mkdir ${APPTAINER_ROOTFS}/neko_src
 mkdir ${APPTAINER_ROOTFS}/neko_install
 mkdir ${APPTAINER_ROOTFS}/pfunit_install
 
 %post
 export DEBIAN_FRONTEND=noninteractive
+export PREFIX=${APPTAINER_ROOTFS}/neko_install
+export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+
+
 apt-get update
 apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui python-is-python3
 apt-get install -y libopenblas-dev
 apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
 apt-get install -y vim pkg-config
 apt-get install -y makedepf90
+apt-get install -y wget
+
+mkdir -p $PREFIX/deps && cd $PREFIX/deps
+rm -rf *
+git clone https://github.com/Nek5000/gslib.git gslib
+wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_1.14.6.tar.gz
 git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git -b v4.4.2
-cd pFUnit
+git clone --depth=1 https://github.com/jacobwilliams/json-fortran.git
+
+cd $PREFIX/deps/json-fortran && mkdir b && cd b
+cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation -DUSE_GNU_INSTALL_CONVENTION=ON ..
+make install
+
+cd $PREFIX/pFUnit
 cat >> pfunit_error_stop.patch << _ACEOF
 diff --git a/src/funit/FUnit.F90 b/src/funit/FUnit.F90
 index 7df7b65..4f7dbf5 100644
@@ -32,15 +50,25 @@ index 7df7b65..4f7dbf5 100644
 
 _ACEOF
 git apply pfunit_error_stop.patch && mkdir b && cd b
-cmake -DCMAKE_INSTALL_PREFIX=/pfunit_install .. && make -j$(nproc) && make install
+cmake -DCMAKE_INSTALL_PREFIX=$PREFIX .. && make -j$(nproc) && make install
+
+cd $PREFIX/deps/gslib 
+make CC=mpicc DESTDIR=$PREFIX 
+make install
+
+cd $PREFIX/deps
+tar xvf hdf5_1.14.6.tar.gz
+cd hdf5-hdf5_1.14.6
+cmake -B build -S . -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_Fortran_COMPILER=mpifort -DHDF5_ENABLE_PARALLEL=ON -DHDF5_BUILD_FORTRAN=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build/ --parallel
+cmake --install build/
+
 
 %runscript
-    cd /neko
-    make clean
+    cp -r /neko/* neko_scr
+    cd /neko_scr
     ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=/pfunit_install/PFUNIT-4.4 --prefix=/neko_install
-    cd /neko/src && make depend && cd /neko
-    ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=/pfunit_install/PFUNIT-4.4 --prefix=/neko_install
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=$PREFIX/PFUNIT-4.4 --prefix=$PREFIX --with-gslib=$PREFIX --with-hdf5=$PREFIX
+    git clean 
     make check -j
 
