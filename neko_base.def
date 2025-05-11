@@ -1,0 +1,72 @@
+BootStrap: docker
+From: ubuntu:24.04
+
+%setup
+mkdir ${APPTAINER_ROOTFS}/neko
+mkdir ${APPTAINER_ROOTFS}/neko_src
+mkdir ${APPTAINER_ROOTFS}/neko_install
+
+%post
+export DEBIAN_FRONTEND=noninteractive
+export PREFIX=${APPTAINER_ROOTFS}/neko_install
+export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+
+
+apt-get update
+apt-get install -y gcc gfortran g++ make git m4 python3  cmake-curses-gui python-is-python3
+apt-get install -y libopenblas-dev
+apt-get install -y openmpi-bin libopenmpi-dev autoconf automake autotools-dev
+apt-get install -y vim pkg-config
+apt-get install -y makedepf90
+apt-get install -y wget
+
+mkdir -p $PREFIX/deps && cd $PREFIX/deps
+git clone https://github.com/Nek5000/gslib.git gslib
+wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_1.14.6.tar.gz
+git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git -b v4.4.2
+git clone --depth=1 https://github.com/jacobwilliams/json-fortran.git
+
+cd $PREFIX/deps/json-fortran && mkdir b && cd b
+cmake -DCMAKE_INSTALL_PREFIX=$PREFIX -DUSE_GNU_INSTALL_CONVENTION=ON ..
+make install
+
+cd $PREFIX/deps/pFUnit
+cat >> pfunit_error_stop.patch << _ACEOF
+diff --git a/src/funit/FUnit.F90 b/src/funit/FUnit.F90
+index 7df7b65..4f7dbf5 100644
+--- a/src/funit/FUnit.F90
++++ b/src/funit/FUnit.F90
+@@ -168,7 +168,7 @@ contains
+ #if defined(PGI)
+          call exit(-1)
+ #else
+-         stop '*** Encountered 1 or more failures/errors during testing. ***'
++         error stop '*** Encountered 1 or more failures/errors during testing. ***'
+ #endif
+       end if
+
+_ACEOF
+git apply pfunit_error_stop.patch
+cmake -B build -S . -DCMAKE_INSTALL_PREFIX=$PREFIX 
+cmake --build build/ --parallel
+cmake --install build/
+
+cd $PREFIX/deps/gslib 
+make CC=mpicc DESTDIR=$PREFIX 
+make install
+
+cd $PREFIX/deps
+tar xvf hdf5_1.14.6.tar.gz
+cd hdf5-hdf5_1.14.6
+cmake -B build -S . \
+  -DCMAKE_INSTALL_PREFIX=$PREFIX \
+  -DCMAKE_C_COMPILER=mpicc \
+  -DCMAKE_CXX_COMPILER=mpicxx \
+  -DCMAKE_Fortran_COMPILER=mpifort \
+  -DHDF5_ENABLE_PARALLEL=ON \
+  -DHDF5_BUILD_FORTRAN=ON \
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build/ --parallel
+cmake --install build/
