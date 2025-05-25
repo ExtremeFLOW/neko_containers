@@ -12,8 +12,7 @@ export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
     rm -rf /tmp/neko_build/cpu/*
     cp -r /neko/* /tmp/neko_build/cpu/
     cd /tmp/neko_build/cpu
-    git clean  -fd
     ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008"  --with-pfunit=$PREFIX/PFUNIT-4.4 --prefix=$PREFIX --with-gslib=$PREFIX --with-hdf5=$PREFIX
+    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w"  --with-pfunit=$PREFIX/PFUNIT-4.4 --with-gslib=$PREFIX --with-hdf5=$PREFIX
     make check -j
 

@@ -3,7 +3,6 @@ From: ubuntu:24.04
 
 %setup
 mkdir ${APPTAINER_ROOTFS}/neko
-mkdir ${APPTAINER_ROOTFS}/neko_src
 mkdir ${APPTAINER_ROOTFS}/neko_install
 
 %post
