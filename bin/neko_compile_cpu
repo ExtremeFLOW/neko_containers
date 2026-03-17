@@ -1,2 +1,21 @@
 #!/bin/bash
-apptainer run $NEKO_CONTAINER_DIR/neko_cpu.sif
+set -euo pipefail
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repo_dir=$(cd "$script_dir/.." && pwd)
+image="$repo_dir/neko_cpu.sif"
+binds="${APPTAINER_BIND:-${APPTAINER_BINDPATH:-}}"
+
+if [[ ! -f "$image" ]]; then
+  echo "Missing image: $image" >&2
+  echo "Build it first with: apptainer build ./neko_cpu.sif ./neko_cpu.def" >&2
+  exit 1
+fi
+
+if [[ "$binds" != *":/neko"* ]]; then
+  echo "APPTAINER_BIND or APPTAINER_BINDPATH must bind your Neko source to /neko." >&2
+  echo 'Example: export APPTAINER_BIND="/path/to/neko:/neko"' >&2
+  exit 1
+fi
+
+apptainer run "$image"
