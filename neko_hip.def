@@ -6,21 +6,26 @@ export DEBIAN_FRONTEND=noninteractive
 export PREFIX=${APPTAINER_ROOTFS}/neko_install
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
 export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+export FC=gfortran
 
 %post
 export DEBIAN_FRONTEND=noninteractive
 cd /neko_install/deps
 wget -r -np -nd -A 'amdgpu*.deb' https://repo.radeon.com/amdgpu-install/latest/ubuntu/noble/
 apt install -y ./amdgpu-install_*.deb
-apt-get update && apt-get install -y amdgpu-dkms rocm-dev
+apt-get update && apt-get install -y rocm-dev
 
 %runscript
+    set -e
+    export CC=gcc
+    export CXX=g++
+    export FC=gfortran
     mkdir -p /tmp/neko_build/hip
     rm -rf /tmp/neko_build/hip/*
-    cp -r /neko/* /tmp/neko_build/hip/
+    cp -aL /neko/. /tmp/neko_build/hip/
+    mkdir -p /tmp/neko_build/hip/install
     cd /tmp/neko_build/hip/
     ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w" HIP_HIPCC_FLAGS="-O2 -fPIE"  --with-hip=/opt/rocm/hip --with-gslib=$PREFIX --with-hdf5=$PREFIX
+    ./configure CC=${CC} CXX=${CXX} FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w" HIP_HIPCC_FLAGS="-O2 -fPIE" --with-hip=/opt/rocm --with-gslib=$PREFIX --with-hdf5=$PREFIX --prefix=/tmp/neko_build/hip/install
 
-    make -j install
-
+    make -j"$(nproc)" install

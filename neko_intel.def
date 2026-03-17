@@ -1,0 +1,83 @@
+Bootstrap: docker
+From: ubuntu:24.04
+
+%environment
+export DEBIAN_FRONTEND=noninteractive
+export JSON_FORTRAN_PREFIX=/opt/json-fortran
+export PKG_CONFIG_PATH=$JSON_FORTRAN_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+export LD_LIBRARY_PATH=$JSON_FORTRAN_PREFIX/lib:$LD_LIBRARY_PATH
+export PATH=/opt/intel/oneapi/compiler/latest/bin:/opt/intel/oneapi/mpi/latest/bin:$PATH
+export CC=icx
+export CXX=icpx
+export FC=ifx
+
+%post
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y --no-install-recommends \
+  autoconf \
+  automake \
+  autotools-dev \
+  ca-certificates \
+  cmake \
+  git \
+  gnupg \
+  gpg-agent \
+  libtool \
+  libopenblas-dev \
+  m4 \
+  make \
+  makedepf90 \
+  pkg-config \
+  python3 \
+  wget
+
+wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+  | gpg --dearmor \
+  | tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+  > /etc/apt/sources.list.d/oneAPI.list
+
+apt-get update
+apt-get install -y --no-install-recommends \
+  intel-oneapi-compiler-dpcpp-cpp \
+  intel-oneapi-compiler-fortran \
+  intel-oneapi-mpi \
+  intel-oneapi-mpi-devel
+
+/bin/bash -lc '
+set -e
+. /opt/intel/oneapi/setvars.sh
+rm -rf /tmp/json-fortran
+git clone --branch 8.4.0 --depth=1 https://github.com/jacobwilliams/json-fortran.git /tmp/json-fortran
+cmake -B /tmp/json-fortran/build -S /tmp/json-fortran \
+  -DCMAKE_INSTALL_PREFIX=/opt/json-fortran \
+  -DUSE_GNU_INSTALL_CONVENTION=ON \
+  -DCMAKE_C_COMPILER=icx \
+  -DCMAKE_CXX_COMPILER=icpx \
+  -DCMAKE_Fortran_COMPILER=ifx
+cmake --build /tmp/json-fortran/build --parallel
+cmake --install /tmp/json-fortran/build
+'
+
+%runscript
+    exec /bin/bash -lc '
+    set -e
+    . /opt/intel/oneapi/setvars.sh
+    export JSON_FORTRAN_PREFIX=/opt/json-fortran
+    export PKG_CONFIG_PATH=$JSON_FORTRAN_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+    export LD_LIBRARY_PATH=$JSON_FORTRAN_PREFIX/lib:$LD_LIBRARY_PATH
+    export CC=icx
+    export CXX=icpx
+    export FC=ifx
+    export MPIFC="mpiifort -fc=${FC}"
+    mkdir -p /tmp/neko_build/intel
+    rm -rf /tmp/neko_build/intel/*
+    cp -aL /neko/. /tmp/neko_build/intel/
+    mkdir -p /tmp/neko_build/intel/install
+    cd /tmp/neko_build/intel
+    ./regen.sh
+    ./configure CC=${CC} FC=${FC} MPIFC="${MPIFC}" --prefix=/tmp/neko_build/intel/install
+    make FCFLAGS="-O2 -stand f08 -warn errors $(pkg-config --cflags json-fortran)" -j"$(nproc)" install
+    '

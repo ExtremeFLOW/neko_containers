@@ -6,13 +6,18 @@ export DEBIAN_FRONTEND=noninteractive
 export PREFIX=${APPTAINER_ROOTFS}/neko_install
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
 export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+export FC=gfortran
 
 %runscript
+    set -e
+    export CC=gcc
+    export CXX=g++
+    export FC=gfortran
     mkdir -p /tmp/neko_build/cpu
     rm -rf /tmp/neko_build/cpu/*
-    cp -r /neko/* /tmp/neko_build/cpu/
+    cp -aL /neko/. /tmp/neko_build/cpu/
+    mkdir -p /tmp/neko_build/cpu/install
     cd /tmp/neko_build/cpu
     ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w"  --with-pfunit=$PREFIX/PFUNIT-4.4 --with-gslib=$PREFIX --with-hdf5=$PREFIX
-    make check -j
-
+    ./configure CC=${CC} CXX=${CXX} FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w" --with-pfunit=$PREFIX --with-hdf5=$PREFIX --prefix=/tmp/neko_build/cpu/install
+    make -j"$(nproc)"

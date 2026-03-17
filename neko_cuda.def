@@ -6,6 +6,7 @@ export DEBIAN_FRONTEND=noninteractive
 export PREFIX=${APPTAINER_ROOTFS}/neko_install
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
 export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+export FC=gfortran
 
 %post
 export DEBIAN_FRONTEND=noninteractive
@@ -13,11 +14,16 @@ apt-get update
 apt-get install -y nvidia-cuda-toolkit
 
 %runscript
+    set -e
+    export CC=gcc
+    export CXX=g++
+    export FC=gfortran
     mkdir -p /tmp/neko_build/cuda
     rm -rf /tmp/neko_build/cuda/*
-    cp -r /neko/* /tmp/neko_build/cuda/
+    cp -aL /neko/. /tmp/neko_build/cuda/
+    mkdir -p /tmp/neko_build/cuda/install
     cd /tmp/neko_build/cuda/
     ./regen.sh
-    ./configure FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w" --with-cuda=/usr --with-gslib=$PREFIX --with-hdf5=$PREFIX
+    ./configure CC=${CC} CXX=${CXX} FC=${FC} FCFLAGS="-O2 -pedantic -std=f2008 -w" --with-cuda=/usr --with-gslib=$PREFIX --with-hdf5=$PREFIX --prefix=/tmp/neko_build/cuda/install
 
-    make -j install
+    make -j"$(nproc)" install
