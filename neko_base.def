@@ -65,7 +65,12 @@ cmake -B build -S . \
   -DCMAKE_Fortran_COMPILER=mpifort \
   -DHDF5_ENABLE_PARALLEL=ON \
   -DHDF5_BUILD_FORTRAN=ON \
+  -DHDF5_BUILD_HL_LIB=ON \
+  -DHDF5_BUILD_CPP_LIB=OFF \
+  -DHDF5_BUILD_EXAMPLES=OFF \
+  -DHDF5_BUILD_TOOLS=OFF \
+  -DBUILD_TESTING=OFF \
   -DCMAKE_BUILD_TYPE=Release
 
-cmake --build build/ --parallel
+cmake --build build/ --parallel 2
 cmake --install build/
